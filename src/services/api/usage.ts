@@ -3,7 +3,7 @@
  */
 
 import { apiClient } from './client';
-import { computeKeyStats, KeyStats } from '@/utils/usage';
+import { computeKeyStats, KeyStats, type ModelPrice } from '@/utils/usage';
 
 const USAGE_TIMEOUT_MS = 60 * 1000;
 
@@ -49,5 +49,18 @@ export const usageApi = {
       payload = response?.usage ?? response;
     }
     return computeKeyStats(payload);
-  }
+  },
+
+  getModelPrices: async (): Promise<Record<string, ModelPrice>> => {
+    const res = await apiClient.get<{ 'model-prices'?: Record<string, ModelPrice> }>('/model-prices');
+    return (res as Record<string, unknown>)?.['model-prices'] as Record<string, ModelPrice> ?? {};
+  },
+
+  putModelPrices: async (prices: Record<string, ModelPrice>): Promise<void> => {
+    await apiClient.put('/model-prices', prices);
+  },
+
+  deleteModelPrice: async (model: string): Promise<void> => {
+    await apiClient.delete('/model-prices', { params: { model } });
+  },
 };

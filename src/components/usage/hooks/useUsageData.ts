@@ -50,7 +50,14 @@ export function useUsageData(): UseUsageDataReturn {
 
   useEffect(() => {
     void loadUsageStats({ staleTimeMs: USAGE_STATS_STALE_TIME_MS }).catch(() => {});
-    setModelPrices(loadModelPrices());
+    usageApi.getModelPrices()
+      .then((serverPrices) => {
+        setModelPrices(serverPrices);
+        saveModelPrices(serverPrices); // 同步到 localStorage 作為 cache
+      })
+      .catch(() => {
+        setModelPrices(loadModelPrices()); // fallback 到 localStorage
+      });
   }, [loadUsageStats]);
 
   const handleExport = async () => {
@@ -131,7 +138,10 @@ export function useUsageData(): UseUsageDataReturn {
 
   const handleSetModelPrices = useCallback((prices: Record<string, ModelPrice>) => {
     setModelPrices(prices);
-    saveModelPrices(prices);
+    saveModelPrices(prices); // 即時寫 localStorage
+    usageApi.putModelPrices(prices).catch((err) => {
+      console.warn('Failed to save model prices to server:', err);
+    });
   }, []);
 
   const usage = usageSnapshot as UsagePayload | null;

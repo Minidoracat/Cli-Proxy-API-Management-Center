@@ -66,6 +66,7 @@ export interface UsageDetail {
     total_tokens: number;
   };
   failed: boolean;
+  cost?: number;
   __modelName?: string;
   __timestampMs?: number;
 }
@@ -555,6 +556,7 @@ export function collectUsageDetails(usageData: unknown): UsageDetail[] {
           latency_ms: latencyMs ?? undefined,
           tokens: tokensRaw as unknown as UsageDetail['tokens'],
           failed: detailRaw.failed === true,
+          cost: typeof detailRaw.cost === 'number' ? detailRaw.cost : undefined,
           __modelName: modelName,
           __timestampMs: Number.isNaN(timestampMs) ? 0 : timestampMs,
         });
@@ -628,6 +630,7 @@ export function collectUsageDetailsWithEndpoint(usageData: unknown): UsageDetail
           latency_ms: latencyMs ?? undefined,
           tokens: tokensRaw as unknown as UsageDetail['tokens'],
           failed: detailRaw.failed === true,
+          cost: typeof detailRaw.cost === 'number' ? detailRaw.cost : undefined,
           __modelName: modelName,
           __endpoint: endpoint,
           __endpointMethod: endpointMethod,
@@ -767,6 +770,10 @@ export function calculateCost(
   detail: UsageDetail,
   modelPrices: Record<string, ModelPrice>
 ): number {
+  // Use backend-calculated cost when available
+  if (typeof detail.cost === 'number' && detail.cost > 0) {
+    return detail.cost;
+  }
   const modelName = detail.__modelName || '';
   const price = modelPrices[modelName];
   if (!price) {
