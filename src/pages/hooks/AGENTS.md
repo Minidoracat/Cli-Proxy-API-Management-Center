@@ -14,7 +14,6 @@ Page-specific hooks for the Logs page — log parsing, filtering, scrolling, and
 | `logParsing.ts` | Log line parsing logic — extracts level, timestamp, message |
 | `useLogFilters.ts` | Hook for log search, level filtering, management traffic hiding |
 | `useLogScroller.ts` | Auto-scroll and infinite scroll logic for log viewer |
-| `useTraceResolver.ts` | Resolves trace IDs to request context |
 
 ## For AI Agents
 

@@ -22,6 +22,10 @@ export {
   extractLatencyMs,
   formatDurationMs,
 } from './usage/latency';
+import { normalizeAuthIndex } from './authIndex';
+import type { StatusBarData, StatusBlockDetail, StatusBlockState } from './recentRequests';
+export { normalizeAuthIndex } from './authIndex';
+export type { StatusBlockState, StatusBlockDetail, StatusBarData } from './recentRequests';
 
 export interface KeyStatBucket {
   success: number;
@@ -71,13 +75,6 @@ export interface UsageDetail {
   __timestampMs?: number;
 }
 
-export interface UsageDetailWithEndpoint extends UsageDetail {
-  __endpoint: string;
-  __endpointMethod?: string;
-  __endpointPath?: string;
-  __timestampMs: number;
-}
-
 export interface ApiStats {
   endpoint: string;
   totalRequests: number;
@@ -107,7 +104,6 @@ export type UsageTimeRange = '7h' | '24h' | '7d' | 'all';
 
 const TOKENS_PER_PRICE_UNIT = 1_000_000;
 const MODEL_PRICE_STORAGE_KEY = 'cli-proxy-model-prices-v2';
-const USAGE_ENDPOINT_METHOD_REGEX = /^(GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD)\s+(\S+)/i;
 const USAGE_TIME_RANGE_MS: Record<Exclude<UsageTimeRange, 'all'>, number> = {
   '7h': 7 * 60 * 60 * 1000,
   '24h': 24 * 60 * 60 * 1000,
@@ -250,17 +246,6 @@ export function filterUsageByTimeRange<T>(
     apis: filteredApis,
   } as T;
 }
-
-export const normalizeAuthIndex = (value: unknown) => {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value.toString();
-  }
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    return trimmed ? trimmed : null;
-  }
-  return null;
-};
 
 const USAGE_SOURCE_PREFIX_KEY = 'k:';
 const USAGE_SOURCE_PREFIX_MASKED = 'm:';
@@ -499,7 +484,6 @@ export function formatUsd(value: number): string {
 }
 
 const usageDetailsCache = new WeakMap<object, UsageDetail[]>();
-const usageDetailsWithEndpointCache = new WeakMap<object, UsageDetailWithEndpoint[]>();
 
 /**
  * 从使用数据中收集所有请求明细
@@ -566,83 +550,6 @@ export function collectUsageDetails(usageData: unknown): UsageDetail[] {
 
   if (cacheKey) {
     usageDetailsCache.set(cacheKey, details);
-  }
-  return details;
-}
-
-/**
- * 从使用数据中收集包含 endpoint/method/path 的请求明细
- */
-export function collectUsageDetailsWithEndpoint(usageData: unknown): UsageDetailWithEndpoint[] {
-  const cacheKey = isRecord(usageData) ? (usageData as object) : null;
-  if (cacheKey) {
-    const cached = usageDetailsWithEndpointCache.get(cacheKey);
-    if (cached) return cached;
-  }
-
-  const apis = getApisRecord(usageData);
-  if (!apis) return [];
-
-  const details: UsageDetailWithEndpoint[] = [];
-  const sourceCache = new Map<string, string>();
-
-  const normalizeSource = (value: unknown): string => {
-    const raw =
-      typeof value === 'string'
-        ? value
-        : value === null || value === undefined
-          ? ''
-          : String(value);
-    const trimmed = raw.trim();
-    if (!trimmed) return '';
-    const cached = sourceCache.get(trimmed);
-    if (cached !== undefined) return cached;
-    const normalized = normalizeUsageSourceId(trimmed);
-    sourceCache.set(trimmed, normalized);
-    return normalized;
-  };
-
-  Object.entries(apis).forEach(([endpoint, apiEntry]) => {
-    if (!isRecord(apiEntry)) return;
-    const modelsRaw = apiEntry.models;
-    const models = isRecord(modelsRaw) ? modelsRaw : null;
-    if (!models) return;
-
-    const endpointMatch = endpoint.match(USAGE_ENDPOINT_METHOD_REGEX);
-    const endpointMethod = endpointMatch?.[1]?.toUpperCase();
-    const endpointPath = endpointMatch?.[2];
-
-    Object.entries(models).forEach(([modelName, modelEntry]) => {
-      if (!isRecord(modelEntry)) return;
-      const modelDetailsRaw = modelEntry.details;
-      const modelDetails = Array.isArray(modelDetailsRaw) ? modelDetailsRaw : [];
-
-      modelDetails.forEach((detailRaw) => {
-        if (!isRecord(detailRaw) || typeof detailRaw.timestamp !== 'string') return;
-        const timestamp = detailRaw.timestamp;
-        const timestampMs = Date.parse(timestamp);
-        const tokensRaw = isRecord(detailRaw.tokens) ? detailRaw.tokens : {};
-        const latencyMs = extractLatencyMs(detailRaw);
-        details.push({
-          timestamp,
-          source: normalizeSource(detailRaw.source),
-          auth_index: detailRaw.auth_index as unknown as number,
-          latency_ms: latencyMs ?? undefined,
-          tokens: tokensRaw as unknown as UsageDetail['tokens'],
-          failed: detailRaw.failed === true,
-          cost: typeof detailRaw.cost === 'number' ? detailRaw.cost : undefined,
-          __modelName: modelName,
-          __endpoint: endpoint,
-          __endpointMethod: endpointMethod,
-          __endpointPath: endpointPath,
-          __timestampMs: Number.isNaN(timestampMs) ? 0 : timestampMs,
-        });
-      });
-    });
-  });
-
-  if (cacheKey) {
-    usageDetailsWithEndpointCache.set(cacheKey, details);
   }
   return details;
 }
@@ -1232,9 +1139,7 @@ export interface ChartDataset {
   data: number[];
   borderColor: string;
   backgroundColor:
-    | string
-    | CanvasGradient
-    | ((context: ScriptableContext<'line'>) => string | CanvasGradient);
+    string | CanvasGradient | ((context: ScriptableContext<'line'>) => string | CanvasGradient);
   pointBackgroundColor?: string;
   pointBorderColor?: string;
   fill: boolean;
@@ -1358,39 +1263,6 @@ export function buildChartData(
   });
 
   return { labels, datasets };
-}
-
-/**
- * 依据 usage 数据计算密钥使用统计
- */
-/**
- * 状态栏单个格子的状态
- */
-export type StatusBlockState = 'success' | 'failure' | 'mixed' | 'idle';
-
-/**
- * 状态栏单个格子的详细信息
- */
-export interface StatusBlockDetail {
-  success: number;
-  failure: number;
-  /** 该格子的成功率 (0–1)，无请求时为 -1 */
-  rate: number;
-  /** 格子起始时间戳 (ms) */
-  startTime: number;
-  /** 格子结束时间戳 (ms) */
-  endTime: number;
-}
-
-/**
- * 状态栏数据
- */
-export interface StatusBarData {
-  blocks: StatusBlockState[];
-  blockDetails: StatusBlockDetail[];
-  successRate: number;
-  totalSuccess: number;
-  totalFailure: number;
 }
 
 /**

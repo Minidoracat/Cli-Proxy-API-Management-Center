@@ -10,8 +10,8 @@ Usage chart configuration and helpers for Chart.js integration.
 
 | File | Description |
 |------|-------------|
-| `index.ts` | Barrel export |
 | `chartConfig.ts` | Chart.js default options, color palettes, axis config for usage charts |
+| `latency.ts` | Latency sample extraction, accumulation and duration formatting |
 
 ## For AI Agents
 

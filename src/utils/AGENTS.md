@@ -22,8 +22,7 @@ Utility functions for data formatting, validation, encryption, clipboard, downlo
 | `language.ts` | Language detection and mapping |
 | `models.ts` | Model name parsing and utilities |
 | `sourceResolver.ts` | Source info resolution logic |
-| `usage.ts` | Usage data transformation utilities |
-| `usageIndex.ts` | Usage index/lookup utilities |
+| `usage.ts` | Usage data transformation, pricing and cost utilities |
 | `validation.ts` | Input validation functions |
 
 ## Subdirectories

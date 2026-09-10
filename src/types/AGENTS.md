@@ -19,7 +19,6 @@ TypeScript type definitions and interfaces for all application domains. Provides
 | `ampcode.ts` | Ampcode provider-specific types |
 | `oauth.ts` | OAuth flow types — device/redirect auth |
 | `quota.ts` | Quota types — limits, usage per provider |
-| `usage.ts` | Usage statistics types — request/token data |
 | `log.ts` | Log entry types |
 | `common.ts` | Shared utility types |
 | `sourceInfo.ts` | Source info types for credential resolution |

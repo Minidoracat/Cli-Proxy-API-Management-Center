@@ -34,7 +34,7 @@ Usage statistics visualization components — charts, stat cards, and detailed b
 ### Working In This Directory
 - Charts use Chart.js via `react-chartjs-2`
 - Data hooks in `hooks/` handle fetching and transforming usage data
-- Price settings are stored locally (not on server)
+- Model prices are persisted through the backend `/model-prices` API, with a local fallback cache.
 
 ### Dependencies
 
